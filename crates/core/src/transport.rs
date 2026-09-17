@@ -1,4 +1,69 @@
 //! Network transmission layer for RTP packets over UDP
+//!
+//! This module provides low-latency UDP transport for RTP packets, supporting both
+//! sending and receiving operations with statistics tracking.
+//!
+//! # Features
+//!
+//! - **UDP-based RTP transmission**: Low-latency packet delivery using tokio async I/O
+//! - **Statistics tracking**: Per-sender and per-receiver packet/byte counters
+//! - **Simple API**: Async send/receive with automatic serialization
+//! - **RFC 3550 compliant**: Works with standard RTP packets
+//!
+//! # Architecture
+//!
+//! The transport layer consists of two main components:
+//!
+//! - [`RtpSender`]: Sends RTP packets to a target address over UDP
+//! - [`RtpReceiver`]: Receives RTP packets from any source on a bound port
+//!
+//! Both components track statistics ([`SenderStats`]/[`ReceiverStats`]) for monitoring
+//! and debugging network performance.
+//!
+//! # Example
+//!
+//! ```no_run
+//! use audio_bridge_core::rtp::{RtpHeader, RtpPacket};
+//! use audio_bridge_core::transport::{RtpReceiver, RtpSender};
+//! use std::net::SocketAddr;
+//!
+//! #[tokio::main]
+//! async fn main() -> audio_bridge_core::Result<()> {
+//!     // Create receiver
+//!     let receiver_addr: SocketAddr = "127.0.0.1:5004".parse().unwrap();
+//!     let mut receiver = RtpReceiver::new(receiver_addr).await?;
+//!
+//!     // Create sender targeting the receiver
+//!     let mut sender = RtpSender::new(receiver_addr).await?;
+//!
+//!     // Send a packet
+//!     let header = RtpHeader {
+//!         version: 2,
+//!         padding: false,
+//!         extension: false,
+//!         csrc_count: 0,
+//!         marker: false,
+//!         payload_type: 96,
+//!         sequence_number: 0,
+//!         timestamp: 0,
+//!         ssrc: 0x12345678,
+//!     };
+//!     let packet = RtpPacket::new(header, vec![0; 100]);
+//!     sender.send(&packet).await?;
+//!
+//!     // Receive the packet
+//!     let received = receiver.receive().await?;
+//!     println!("Received {} bytes", received.payload.len());
+//!
+//!     // Check statistics
+//!     let stats = sender.stats();
+//!     println!("Sent {} packets", stats.packets_sent);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! For a complete working example, see `examples/simple_loopback.rs`.
 
 use crate::Result;
 use crate::rtp::RtpPacket;
