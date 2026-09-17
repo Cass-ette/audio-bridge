@@ -5,10 +5,25 @@ use crate::rtp::RtpPacket;
 use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 
+/// Statistics for RTP sender
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SenderStats {
+    pub packets_sent: u64,
+    pub bytes_sent: u64,
+}
+
+/// Statistics for RTP receiver
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ReceiverStats {
+    pub packets_received: u64,
+    pub bytes_received: u64,
+}
+
 /// RTP packet sender over UDP
 pub struct RtpSender {
     socket: UdpSocket,
     target: SocketAddr,
+    stats: SenderStats,
 }
 
 impl RtpSender {
@@ -17,7 +32,11 @@ impl RtpSender {
         let local_addr: SocketAddr = "0.0.0.0:0".parse().unwrap();
         let socket = UdpSocket::bind(local_addr).await?;
 
-        Ok(Self { socket, target })
+        Ok(Self {
+            socket,
+            target,
+            stats: SenderStats::default(),
+        })
     }
 
     /// Get local address of bound socket
@@ -28,16 +47,27 @@ impl RtpSender {
     /// Send RTP packet to target address
     ///
     /// Returns number of bytes sent (should equal packet size)
-    pub async fn send(&self, packet: &RtpPacket) -> Result<usize> {
+    pub async fn send(&mut self, packet: &RtpPacket) -> Result<usize> {
         let bytes = packet.to_bytes();
         let sent = self.socket.send_to(&bytes, self.target).await?;
+
+        // Update statistics
+        self.stats.packets_sent += 1;
+        self.stats.bytes_sent += sent as u64;
+
         Ok(sent)
+    }
+
+    /// Get current sender statistics
+    pub fn stats(&self) -> SenderStats {
+        self.stats
     }
 }
 
 /// RTP packet receiver over UDP
 pub struct RtpReceiver {
     socket: UdpSocket,
+    stats: ReceiverStats,
 }
 
 impl RtpReceiver {
@@ -46,7 +76,10 @@ impl RtpReceiver {
     /// Typically bind to 0.0.0.0:5004 for production, 127.0.0.1:5004 for testing
     pub async fn new(bind_addr: SocketAddr) -> Result<Self> {
         let socket = UdpSocket::bind(bind_addr).await?;
-        Ok(Self { socket })
+        Ok(Self {
+            socket,
+            stats: ReceiverStats::default(),
+        })
     }
 
     /// Get local address of bound socket
@@ -64,6 +97,15 @@ impl RtpReceiver {
         buf.truncate(len);
         let packet = RtpPacket::from_bytes(&buf)?;
 
+        // Update statistics
+        self.stats.packets_received += 1;
+        self.stats.bytes_received += len as u64;
+
         Ok(packet)
+    }
+
+    /// Get current receiver statistics
+    pub fn stats(&self) -> ReceiverStats {
+        self.stats
     }
 }

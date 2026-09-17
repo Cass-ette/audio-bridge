@@ -16,7 +16,7 @@ async fn test_sender_creation() -> Result<()> {
 #[tokio::test]
 async fn test_send_packet() -> Result<()> {
     let target: SocketAddr = "127.0.0.1:5004".parse().unwrap();
-    let sender = RtpSender::new(target).await?;
+    let mut sender = RtpSender::new(target).await?;
 
     let header = RtpHeader {
         version: 2,

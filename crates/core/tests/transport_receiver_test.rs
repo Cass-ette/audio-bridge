@@ -19,7 +19,7 @@ async fn test_receive_packet() -> Result<()> {
     let mut receiver = RtpReceiver::new(receiver_addr).await?;
 
     // Create sender targeting receiver
-    let sender = RtpSender::new(receiver_addr).await?;
+    let mut sender = RtpSender::new(receiver_addr).await?;
 
     // Send packet
     let header = RtpHeader {
