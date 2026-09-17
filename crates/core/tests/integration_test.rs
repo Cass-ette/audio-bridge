@@ -74,9 +74,19 @@ fn test_full_audio_pipeline() {
     // Buffer detected 1 "loss" when seq 3 arrived before seq 2, but packet is actually present
     assert_eq!(stats.packets_lost, 1);
 
-    // Decode in order
+    // Decode in order and verify sequence numbers are correct
     let mut decoded_frames = Vec::new();
-    while let Some(packet) = buffer.pop() {
+    let expected_sequences = [1u16, 2, 3, 4, 5];
+
+    for expected_seq in expected_sequences {
+        let packet = buffer.pop().unwrap();
+        assert_eq!(
+            packet.header.sequence_number,
+            expected_seq,
+            "Packet out of sequence: expected {}, got {}",
+            expected_seq,
+            packet.header.sequence_number
+        );
         let decoded = decoder.decode(&packet.payload, false).unwrap();
         decoded_frames.push(decoded);
     }
