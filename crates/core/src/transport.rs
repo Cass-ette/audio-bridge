@@ -34,3 +34,23 @@ impl RtpSender {
         Ok(sent)
     }
 }
+
+/// RTP packet receiver over UDP
+pub struct RtpReceiver {
+    socket: UdpSocket,
+}
+
+impl RtpReceiver {
+    /// Create new receiver listening on bind_addr
+    ///
+    /// Typically bind to 0.0.0.0:5004 for production, 127.0.0.1:5004 for testing
+    pub async fn new(bind_addr: SocketAddr) -> Result<Self> {
+        let socket = UdpSocket::bind(bind_addr).await?;
+        Ok(Self { socket })
+    }
+
+    /// Get local address of bound socket
+    pub fn local_addr(&self) -> Result<SocketAddr> {
+        Ok(self.socket.local_addr()?)
+    }
+}
