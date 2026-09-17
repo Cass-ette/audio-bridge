@@ -8,7 +8,7 @@
 // Modules will be implemented in subsequent tasks
 pub mod codec;
 pub mod rtp;
-// pub mod buffer;
+pub mod buffer;
 pub mod error;
 
 pub use error::{Result, AudioBridgeError};
