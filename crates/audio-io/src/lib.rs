@@ -9,6 +9,9 @@ pub mod mock;
 pub mod sender;
 pub mod receiver;
 
+#[cfg(target_os = "macos")]
+pub mod macos;
+
 pub use error::{AudioIoError, Result};
 pub use config::{SenderConfig, ReceiverConfig, Bitrate};
 pub use sender::{AudioSender, SenderStats};
