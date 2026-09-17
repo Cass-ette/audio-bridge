@@ -14,7 +14,9 @@ pub struct JitterBufferStats {
 pub struct JitterBuffer {
     packets: VecDeque<RtpPacket>,
     max_size: usize,
-    stats: JitterBufferStats,
+    packets_received: u64,
+    packets_lost: u64,
+    last_sequence: Option<u16>,
 }
 
 impl JitterBuffer {
@@ -23,7 +25,9 @@ impl JitterBuffer {
         Self {
             packets: VecDeque::with_capacity(max_size),
             max_size,
-            stats: JitterBufferStats::default(),
+            packets_received: 0,
+            packets_lost: 0,
+            last_sequence: None,
         }
     }
 
@@ -31,11 +35,10 @@ impl JitterBuffer {
     pub fn insert(&mut self, packet: RtpPacket) {
         let seq = packet.header.sequence_number;
 
-        // Update packet loss statistics based on highest sequence seen
-        // Note: This approach detects gaps but may have false positives with
-        // out-of-order delivery. For accurate loss detection, track expected sequence
-        // and only count loss when packets are consumed (popped) from buffer.
-        if let Some(last_seq) = self.stats.last_sequence {
+        // Track packet loss by detecting gaps in sequence numbers.
+        // Only updates last_sequence when a higher sequence number arrives,
+        // so out-of-order packets don't trigger false positives.
+        if let Some(last_seq) = self.last_sequence {
             // Only update last_sequence if this packet has a higher sequence number
             if sequence_greater_than(seq, last_seq) {
                 let expected_seq = last_seq.wrapping_add(1);
@@ -47,18 +50,18 @@ impl JitterBuffer {
                         // Wraparound case: (65536 - expected) + seq
                         ((65536 - expected_seq as u32) + seq as u32) as u64
                     };
-                    self.stats.packets_lost += lost;
+                    self.packets_lost += lost;
                 }
-                self.stats.last_sequence = Some(seq);
+                self.last_sequence = Some(seq);
             }
             // If seq <= last_seq, this is an out-of-order or duplicate packet
             // Don't update last_sequence, don't count as loss
         } else {
             // First packet
-            self.stats.last_sequence = Some(seq);
+            self.last_sequence = Some(seq);
         }
 
-        self.stats.packets_received += 1;
+        self.packets_received += 1;
 
         // Find insertion position - insert before the first packet with larger sequence number
         let pos = self.packets
@@ -72,8 +75,6 @@ impl JitterBuffer {
         while self.packets.len() > self.max_size {
             self.packets.pop_front();
         }
-
-        self.stats.buffer_size = self.packets.len();
     }
 
     /// Remove and return the oldest packet (by sequence number)
@@ -103,12 +104,19 @@ impl JitterBuffer {
 
     /// Get current statistics
     pub fn stats(&self) -> JitterBufferStats {
-        self.stats
+        JitterBufferStats {
+            packets_received: self.packets_received,
+            packets_lost: self.packets_lost,
+            buffer_size: self.packets.len(), // Computed on-demand to stay accurate
+            last_sequence: self.last_sequence,
+        }
     }
 
     /// Reset statistics
     pub fn reset_stats(&mut self) {
-        self.stats = JitterBufferStats::default();
+        self.packets_received = 0;
+        self.packets_lost = 0;
+        self.last_sequence = None;
     }
 }
 

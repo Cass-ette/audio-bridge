@@ -108,3 +108,27 @@ fn test_jitter_buffer_stats() {
     assert_eq!(stats.packets_lost, 0);
     assert_eq!(stats.buffer_size, 5);
 }
+
+#[test]
+fn test_jitter_buffer_stats_after_pop() {
+    let mut buffer = JitterBuffer::new(5);
+
+    // Insert 3 packets
+    buffer.insert(create_test_packet(1, 960, vec![1]));
+    buffer.insert(create_test_packet(2, 1920, vec![2]));
+    buffer.insert(create_test_packet(3, 2880, vec![3]));
+
+    // Verify buffer_size is 3
+    let stats = buffer.stats();
+    assert_eq!(stats.buffer_size, 3);
+
+    // Pop 2 packets
+    buffer.pop();
+    buffer.pop();
+
+    // Verify buffer_size is now 1 (stays accurate after pop)
+    let stats = buffer.stats();
+    assert_eq!(stats.packets_received, 3); // Total received doesn't change
+    assert_eq!(stats.buffer_size, 1); // Current size reflects pops
+    assert_eq!(buffer.len(), 1);
+}
