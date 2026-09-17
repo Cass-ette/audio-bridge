@@ -9,6 +9,6 @@
 // pub mod codec;
 // pub mod rtp;
 // pub mod buffer;
-// pub mod error;
+pub mod error;
 
-// pub use error::{Result, AudioBridgeError};
+pub use error::{Result, AudioBridgeError};
