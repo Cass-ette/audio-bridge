@@ -71,9 +71,39 @@ impl RtpHeader {
     }
 }
 
-/// RTP packet placeholder for future implementation
+/// Complete RTP packet (header + payload)
 #[derive(Debug, Clone)]
 pub struct RtpPacket {
     pub header: RtpHeader,
     pub payload: Vec<u8>,
+}
+
+impl RtpPacket {
+    pub fn new(header: RtpHeader, payload: Vec<u8>) -> Self {
+        Self { header, payload }
+    }
+
+    /// Serialize packet to bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = self.header.to_bytes();
+        bytes.extend_from_slice(&self.payload);
+        bytes
+    }
+
+    /// Deserialize packet from bytes
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let header = RtpHeader::from_bytes(bytes)?;
+        let payload = bytes[12..].to_vec();
+        Ok(Self { header, payload })
+    }
+
+    /// Increment sequence number (with wraparound)
+    pub fn increment_sequence(&mut self) {
+        self.header.sequence_number = self.header.sequence_number.wrapping_add(1);
+    }
+
+    /// Increment timestamp by sample count
+    pub fn increment_timestamp(&mut self, samples: u32) {
+        self.header.timestamp = self.header.timestamp.wrapping_add(samples);
+    }
 }

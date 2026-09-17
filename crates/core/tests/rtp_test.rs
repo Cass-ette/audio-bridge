@@ -1,4 +1,4 @@
-use audio_bridge_core::rtp::RtpHeader;
+use audio_bridge_core::rtp::{RtpHeader, RtpPacket};
 
 #[test]
 fn test_rtp_header_serialize() {
@@ -35,4 +35,49 @@ fn test_rtp_header_deserialize() {
     assert_eq!(header.sequence_number, 1234);
     assert_eq!(header.timestamp, 48000);
     assert_eq!(header.ssrc, 0x12345678);
+}
+
+#[test]
+fn test_rtp_packet_roundtrip() {
+    let header = RtpHeader {
+        version: 2,
+        padding: false,
+        extension: false,
+        csrc_count: 0,
+        marker: false,
+        payload_type: 96,
+        sequence_number: 100,
+        timestamp: 960,
+        ssrc: 0xABCDEF01,
+    };
+
+    let payload = vec![1, 2, 3, 4, 5, 6, 7, 8];
+    let packet = RtpPacket::new(header.clone(), payload.clone());
+
+    let bytes = packet.to_bytes();
+    let decoded = RtpPacket::from_bytes(&bytes).unwrap();
+
+    assert_eq!(decoded.header, header);
+    assert_eq!(decoded.payload, payload);
+}
+
+#[test]
+fn test_rtp_packet_increment_sequence() {
+    let mut packet = RtpPacket::new(
+        RtpHeader {
+            version: 2,
+            padding: false,
+            extension: false,
+            csrc_count: 0,
+            marker: false,
+            payload_type: 96,
+            sequence_number: 65535,
+            timestamp: 0,
+            ssrc: 0,
+        },
+        vec![],
+    );
+
+    packet.increment_sequence();
+    assert_eq!(packet.header.sequence_number, 0); // Wrap around
 }
