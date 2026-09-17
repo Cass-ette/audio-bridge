@@ -53,4 +53,17 @@ impl RtpReceiver {
     pub fn local_addr(&self) -> Result<SocketAddr> {
         Ok(self.socket.local_addr()?)
     }
+
+    /// Receive one RTP packet from socket
+    ///
+    /// Blocks until packet arrives. Buffer size is 2048 bytes (enough for max RTP packet).
+    pub async fn receive(&mut self) -> Result<RtpPacket> {
+        let mut buf = vec![0u8; 2048];
+        let (len, _src_addr) = self.socket.recv_from(&mut buf).await?;
+
+        buf.truncate(len);
+        let packet = RtpPacket::from_bytes(&buf)?;
+
+        Ok(packet)
+    }
 }
