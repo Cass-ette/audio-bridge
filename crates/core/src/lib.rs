@@ -42,5 +42,6 @@ pub mod codec;
 pub mod rtp;
 pub mod buffer;
 pub mod error;
+pub mod transport;
 
 pub use error::{Result, AudioBridgeError};
