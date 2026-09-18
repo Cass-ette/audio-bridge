@@ -1,4 +1,4 @@
-use audio_bridge_core::codec::{OpusEncoder, OpusDecoder, AudioFormat};
+use audio_bridge_core::codec::{AudioFormat, OpusDecoder, OpusEncoder};
 
 #[test]
 fn test_opus_encoder_create() {
@@ -84,7 +84,8 @@ fn test_opus_encode_decode_roundtrip() {
     let mut total_error = 0i64;
     let mut count = 0i64;
 
-    for (&orig, &dec) in pcm.iter()
+    for (&orig, &dec) in pcm
+        .iter()
         .take(pcm.len() - lookahead_offset)
         .zip(decoded.iter().skip(lookahead_offset))
     {

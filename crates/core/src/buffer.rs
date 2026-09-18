@@ -64,7 +64,8 @@ impl JitterBuffer {
         self.packets_received += 1;
 
         // Find insertion position - insert before the first packet with larger sequence number
-        let pos = self.packets
+        let pos = self
+            .packets
             .iter()
             .position(|p| sequence_greater_than(p.header.sequence_number, seq))
             .unwrap_or(self.packets.len());

@@ -21,7 +21,10 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 5 || args[1] != "--source" || args[3] != "--target" {
         eprintln!("Usage: {} --source <wav-file> --target <ip:port>", args[0]);
-        eprintln!("Example: {} --source test.wav --target 127.0.0.1:8000", args[0]);
+        eprintln!(
+            "Example: {} --source test.wav --target 127.0.0.1:8000",
+            args[0]
+        );
         std::process::exit(1);
     }
 
@@ -45,12 +48,12 @@ fn main() {
 
     // Create sender
     let config = SenderConfig::default();
-    let mut sender = runtime.block_on(async {
-        AudioSender::with_capture(capture, target_addr, config).await
-    }).unwrap_or_else(|e| {
-        eprintln!("Failed to create audio sender: {:?}", e);
-        std::process::exit(1);
-    });
+    let mut sender = runtime
+        .block_on(async { AudioSender::with_capture(capture, target_addr, config).await })
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to create audio sender: {:?}", e);
+            std::process::exit(1);
+        });
 
     println!("Audio Sender");
     println!("  Source: {}", source_path);

@@ -4,9 +4,9 @@ use opus::{Application, Channels, Decoder, Encoder};
 /// Audio format specification
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AudioFormat {
-    pub sample_rate: u32,  // Always 48000 for Opus
-    pub channels: u16,     // 1 (mono) or 2 (stereo)
-    pub bitrate: u32,      // Target bitrate in bps (e.g., 128000)
+    pub sample_rate: u32, // Always 48000 for Opus
+    pub channels: u16,    // 1 (mono) or 2 (stereo)
+    pub bitrate: u32,     // Target bitrate in bps (e.g., 128000)
 }
 
 /// Opus encoder wrapper
@@ -19,31 +19,38 @@ impl OpusEncoder {
     /// Create new Opus encoder
     pub fn new(format: AudioFormat) -> Result<Self> {
         if format.sample_rate != 48000 {
-            return Err(AudioBridgeError::InvalidFormat(
-                format!("Opus requires 48kHz sample rate, got {}", format.sample_rate)
-            ));
+            return Err(AudioBridgeError::InvalidFormat(format!(
+                "Opus requires 48kHz sample rate, got {}",
+                format.sample_rate
+            )));
         }
 
         let channels = match format.channels {
             1 => Channels::Mono,
             2 => Channels::Stereo,
-            n => return Err(AudioBridgeError::InvalidFormat(
-                format!("Unsupported channel count: {}", n)
-            )),
+            n => {
+                return Err(AudioBridgeError::InvalidFormat(format!(
+                    "Unsupported channel count: {}",
+                    n
+                )))
+            }
         };
 
         let mut encoder = Encoder::new(
             format.sample_rate,
             channels,
             Application::Audio, // General audio (not voip or restricted_lowdelay)
-        ).map_err(|e| AudioBridgeError::OpusError(format!("Failed to create encoder: {:?}", e)))?;
+        )
+        .map_err(|e| AudioBridgeError::OpusError(format!("Failed to create encoder: {:?}", e)))?;
 
         // Set bitrate
-        encoder.set_bitrate(opus::Bitrate::Bits(format.bitrate as i32))
+        encoder
+            .set_bitrate(opus::Bitrate::Bits(format.bitrate as i32))
             .map_err(|e| AudioBridgeError::OpusError(format!("Failed to set bitrate: {:?}", e)))?;
 
         // Enable VBR (Variable Bit Rate)
-        encoder.set_vbr(true)
+        encoder
+            .set_vbr(true)
             .map_err(|e| AudioBridgeError::OpusError(format!("Failed to enable VBR: {:?}", e)))?;
 
         Ok(Self { encoder, format })
@@ -59,13 +66,17 @@ impl OpusEncoder {
         let expected_samples = frame_size * self.format.channels as usize;
 
         if pcm.len() != expected_samples {
-            return Err(AudioBridgeError::InvalidFormat(
-                format!("Expected {} samples, got {}", expected_samples, pcm.len())
-            ));
+            return Err(AudioBridgeError::InvalidFormat(format!(
+                "Expected {} samples, got {}",
+                expected_samples,
+                pcm.len()
+            )));
         }
 
         let mut output = vec![0u8; 4000]; // Max Opus packet size
-        let len = self.encoder.encode(pcm, &mut output)
+        let len = self
+            .encoder
+            .encode(pcm, &mut output)
             .map_err(|e| AudioBridgeError::OpusError(format!("Encode failed: {:?}", e)))?;
 
         output.truncate(len);
@@ -87,21 +98,26 @@ impl OpusDecoder {
     /// Create new Opus decoder
     pub fn new(format: AudioFormat) -> Result<Self> {
         if format.sample_rate != 48000 {
-            return Err(AudioBridgeError::InvalidFormat(
-                format!("Opus requires 48kHz sample rate, got {}", format.sample_rate)
-            ));
+            return Err(AudioBridgeError::InvalidFormat(format!(
+                "Opus requires 48kHz sample rate, got {}",
+                format.sample_rate
+            )));
         }
 
         let channels = match format.channels {
             1 => Channels::Mono,
             2 => Channels::Stereo,
-            n => return Err(AudioBridgeError::InvalidFormat(
-                format!("Unsupported channel count: {}", n)
-            )),
+            n => {
+                return Err(AudioBridgeError::InvalidFormat(format!(
+                    "Unsupported channel count: {}",
+                    n
+                )))
+            }
         };
 
-        let decoder = Decoder::new(format.sample_rate, channels)
-            .map_err(|e| AudioBridgeError::OpusError(format!("Failed to create decoder: {:?}", e)))?;
+        let decoder = Decoder::new(format.sample_rate, channels).map_err(|e| {
+            AudioBridgeError::OpusError(format!("Failed to create decoder: {:?}", e))
+        })?;
 
         Ok(Self { decoder, format })
     }
@@ -116,7 +132,9 @@ impl OpusDecoder {
         let mut output = vec![0i16; frame_size * self.format.channels as usize];
 
         // Opus decode() returns the number of samples per channel decoded
-        let samples_per_channel = self.decoder.decode(data, &mut output, fec)
+        let samples_per_channel = self
+            .decoder
+            .decode(data, &mut output, fec)
             .map_err(|e| AudioBridgeError::OpusError(format!("Decode failed: {:?}", e)))?;
 
         // Total interleaved samples = samples_per_channel * channels
@@ -132,7 +150,9 @@ impl OpusDecoder {
         let mut output = vec![0i16; output_size];
 
         // Pass empty slice to trigger PLC
-        let len = self.decoder.decode(&[], &mut output, false)
+        let len = self
+            .decoder
+            .decode(&[], &mut output, false)
             .map_err(|e| AudioBridgeError::OpusError(format!("PLC decode failed: {:?}", e)))?;
 
         output.truncate(len * self.format.channels as usize);

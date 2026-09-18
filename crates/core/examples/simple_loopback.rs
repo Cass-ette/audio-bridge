@@ -35,15 +35,22 @@ async fn main() -> audio_bridge_core::Result<()> {
         let packet = RtpPacket::new(header, vec![0xAA; 100]); // 100 bytes of dummy audio
 
         sender.send(&packet).await?;
-        println!("Sent packet {}: seq={}, ts={}", i, packet.header.sequence_number, packet.header.timestamp);
+        println!(
+            "Sent packet {}: seq={}, ts={}",
+            i, packet.header.sequence_number, packet.header.timestamp
+        );
     }
 
     // Receive and print packets
     println!("\nReceiving packets...");
     for _ in 0..5 {
         let packet = receiver.receive().await?;
-        println!("Received packet: seq={}, ts={}, payload_len={}",
-                 packet.header.sequence_number, packet.header.timestamp, packet.payload.len());
+        println!(
+            "Received packet: seq={}, ts={}, payload_len={}",
+            packet.header.sequence_number,
+            packet.header.timestamp,
+            packet.payload.len()
+        );
     }
 
     // Print final stats
@@ -51,10 +58,14 @@ async fn main() -> audio_bridge_core::Result<()> {
     let receiver_stats = receiver.stats();
 
     println!("\n=== Statistics ===");
-    println!("Sender:   {} packets, {} bytes",
-             sender_stats.packets_sent, sender_stats.bytes_sent);
-    println!("Receiver: {} packets, {} bytes",
-             receiver_stats.packets_received, receiver_stats.bytes_received);
+    println!(
+        "Sender:   {} packets, {} bytes",
+        sender_stats.packets_sent, sender_stats.bytes_sent
+    );
+    println!(
+        "Receiver: {} packets, {} bytes",
+        receiver_stats.packets_received, receiver_stats.bytes_received
+    );
 
     Ok(())
 }

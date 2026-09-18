@@ -22,6 +22,7 @@ pub struct AudioSender {
     capture: Box<dyn AudioCapture>,
     encoder: OpusEncoder,
     rtp_sender: RtpSender,
+    #[allow(dead_code)]
     config: SenderConfig,
     running: Arc<AtomicBool>,
     stats: Arc<Mutex<SenderStats>>,
@@ -37,7 +38,9 @@ impl AudioSender {
     /// - Linux: Not implemented (use `with_capture()` instead)
     #[cfg(target_os = "windows")]
     pub async fn new(target_addr: SocketAddr, config: SenderConfig) -> Result<Self> {
-        let capture = Box::new(crate::windows::WasapiCapture::new(config.capture_device.clone())?);
+        let capture = Box::new(crate::windows::WasapiCapture::new(
+            config.capture_device.clone(),
+        )?);
         Self::with_capture(capture, target_addr, config).await
     }
 
@@ -50,7 +53,7 @@ impl AudioSender {
     #[cfg(not(target_os = "windows"))]
     pub async fn new(_target_addr: SocketAddr, _config: SenderConfig) -> Result<Self> {
         Err(AudioIoError::Platform(
-            "Platform-default capture not available. Use with_capture()".into()
+            "Platform-default capture not available. Use with_capture()".into(),
         ))
     }
 
@@ -71,7 +74,9 @@ impl AudioSender {
         let encoder = OpusEncoder::new(format).map_err(AudioIoError::Codec)?;
 
         // Create RTP sender (async initialization)
-        let rtp_sender = RtpSender::new(target_addr).await.map_err(AudioIoError::Codec)?;
+        let rtp_sender = RtpSender::new(target_addr)
+            .await
+            .map_err(AudioIoError::Codec)?;
 
         Ok(Self {
             capture,
@@ -183,12 +188,18 @@ impl AudioSender {
             let send_result = if let Some(ref rt) = runtime {
                 // Use our own runtime
                 rt.block_on(async {
-                    self.rtp_sender.send(&packet).await.map_err(AudioIoError::Codec)
+                    self.rtp_sender
+                        .send(&packet)
+                        .await
+                        .map_err(AudioIoError::Codec)
                 })?
             } else {
                 // Use existing runtime handle
                 tokio::runtime::Handle::current().block_on(async {
-                    self.rtp_sender.send(&packet).await.map_err(AudioIoError::Codec)
+                    self.rtp_sender
+                        .send(&packet)
+                        .await
+                        .map_err(AudioIoError::Codec)
                 })?
             };
 
@@ -274,16 +285,16 @@ mod tests {
         let target_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8000);
         let config = SenderConfig::default();
 
-        let mut sender = AudioSender::with_capture(capture, target_addr, config).await.unwrap();
+        let mut sender = AudioSender::with_capture(capture, target_addr, config)
+            .await
+            .unwrap();
 
         // Get stats handle before moving sender
         let stats_handle = sender.stats.clone();
 
         // Run sender in background thread
         let running_handle = sender.running_handle();
-        let sender_thread = std::thread::spawn(move || {
-            sender.start()
-        });
+        let sender_thread = std::thread::spawn(move || sender.start());
 
         // Let it run briefly
         tokio::time::sleep(Duration::from_millis(150)).await;
@@ -298,9 +309,21 @@ mod tests {
 
         // Verify stats show activity
         let stats = stats_handle.lock().unwrap().clone();
-        assert!(stats.packets_sent > 0, "Expected packets_sent > 0, got {}", stats.packets_sent);
-        assert!(stats.bytes_sent > 0, "Expected bytes_sent > 0, got {}", stats.bytes_sent);
-        assert!(stats.frames_captured > 0, "Expected frames_captured > 0, got {}", stats.frames_captured);
+        assert!(
+            stats.packets_sent > 0,
+            "Expected packets_sent > 0, got {}",
+            stats.packets_sent
+        );
+        assert!(
+            stats.bytes_sent > 0,
+            "Expected bytes_sent > 0, got {}",
+            stats.bytes_sent
+        );
+        assert!(
+            stats.frames_captured > 0,
+            "Expected frames_captured > 0, got {}",
+            stats.frames_captured
+        );
     }
 
     // Helper to create a test WAV file with N frames

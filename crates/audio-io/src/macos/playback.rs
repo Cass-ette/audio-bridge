@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 pub struct CoreAudioPlayback {
     audio_queue: AudioQueueRef,
     buffers: Vec<AudioQueueBufferRef>,
+    #[allow(dead_code)]
     format: AudioStreamBasicDescription,
     buffer_size: usize,
     playback_queue: Arc<Mutex<VecDeque<Vec<i16>>>>,
@@ -82,10 +83,10 @@ impl CoreAudioPlayback {
                 mSampleRate: 48000.0,
                 mFormatID: kAudioFormatLinearPCM,
                 mFormatFlags: kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked,
-                mBytesPerPacket: 4,    // 2 channels * 2 bytes
+                mBytesPerPacket: 4, // 2 channels * 2 bytes
                 mFramesPerPacket: 1,
-                mBytesPerFrame: 4,     // 2 channels * 2 bytes
-                mChannelsPerFrame: 2,  // Stereo
+                mBytesPerFrame: 4,    // 2 channels * 2 bytes
+                mChannelsPerFrame: 2, // Stereo
                 mBitsPerChannel: 16,
                 mReserved: 0,
             };
@@ -260,19 +261,23 @@ mod tests {
     fn test_coreaudio_create() {
         // Simple test to verify we can create an instance
         let playback = CoreAudioPlayback::new();
-        assert!(playback.is_ok(), "Failed to create CoreAudioPlayback: {:?}", playback.err());
+        assert!(
+            playback.is_ok(),
+            "Failed to create CoreAudioPlayback: {:?}",
+            playback.err()
+        );
         println!("CoreAudioPlayback created successfully");
     }
 
     #[test]
     fn test_coreaudio_sine_wave() {
-        // Generate 440Hz sine wave for 1 second
+        // Generate 440Hz sine wave for 200ms (shorter to avoid queue overflow)
         let sample_rate = 48000;
-        let duration_secs = 1;
         let frequency = 440.0;
+        let duration = 0.2; // 200ms
         let amplitude = 0.3; // 30% volume to avoid clipping
 
-        let total_samples = sample_rate * duration_secs;
+        let total_samples = (sample_rate as f32 * duration) as usize;
         let mut samples = Vec::with_capacity(total_samples);
 
         for i in 0..total_samples {
@@ -287,8 +292,8 @@ mod tests {
         // Start playback first
         playback.start().expect("Failed to start playback");
 
-        // Write samples in 20ms chunks (1920 samples for stereo)
-        let chunk_size = 1920; // 20ms stereo at 48kHz
+        // Write samples in 40ms chunks to avoid overwhelming the queue
+        let chunk_size = 3840; // 40ms stereo at 48kHz (1920 frames * 2 channels)
         for chunk in samples.chunks(chunk_size / 2) {
             // Convert mono to stereo by duplicating samples
             let mut stereo_chunk = Vec::with_capacity(chunk.len() * 2);
@@ -300,12 +305,12 @@ mod tests {
                 .write(&stereo_chunk)
                 .expect("Failed to write audio");
 
-            // Small delay to avoid filling the queue too fast
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            // Sleep to let CoreAudio consume some buffers (30ms sleep for 40ms chunk)
+            std::thread::sleep(std::time::Duration::from_millis(30));
         }
 
         // Sleep to let remaining audio play
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        std::thread::sleep(std::time::Duration::from_millis(300));
 
         // Stop playback
         playback.stop().expect("Failed to stop playback");

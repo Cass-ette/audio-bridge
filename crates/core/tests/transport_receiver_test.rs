@@ -1,4 +1,9 @@
-use audio_bridge_core::{transport::RtpReceiver, transport::RtpSender, rtp::{RtpHeader, RtpPacket}, Result};
+use audio_bridge_core::{
+    rtp::{RtpHeader, RtpPacket},
+    transport::RtpReceiver,
+    transport::RtpSender,
+    Result,
+};
 use std::net::SocketAddr;
 use tokio::time::{timeout, Duration};
 

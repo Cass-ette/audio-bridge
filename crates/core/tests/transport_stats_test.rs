@@ -1,7 +1,7 @@
 //! Statistics tracking tests for RtpSender and RtpReceiver
 
-use audio_bridge_core::transport::{RtpReceiver, RtpSender};
 use audio_bridge_core::rtp::{RtpHeader, RtpPacket};
+use audio_bridge_core::transport::{RtpReceiver, RtpSender};
 use std::net::SocketAddr;
 
 #[tokio::test]

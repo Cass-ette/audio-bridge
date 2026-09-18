@@ -1,9 +1,9 @@
 //! End-to-end integration test: encode → RTP → jitter buffer → decode
 
 use audio_bridge_core::{
-    codec::{AudioFormat, OpusEncoder, OpusDecoder},
-    rtp::{RtpHeader, RtpPacket},
     buffer::JitterBuffer,
+    codec::{AudioFormat, OpusDecoder, OpusEncoder},
+    rtp::{RtpHeader, RtpPacket},
 };
 
 #[test]
@@ -81,11 +81,9 @@ fn test_full_audio_pipeline() {
     for expected_seq in expected_sequences {
         let packet = buffer.pop().unwrap();
         assert_eq!(
-            packet.header.sequence_number,
-            expected_seq,
+            packet.header.sequence_number, expected_seq,
             "Packet out of sequence: expected {}, got {}",
-            expected_seq,
-            packet.header.sequence_number
+            expected_seq, packet.header.sequence_number
         );
         let decoded = decoder.decode(&packet.payload, false).unwrap();
         decoded_frames.push(decoded);

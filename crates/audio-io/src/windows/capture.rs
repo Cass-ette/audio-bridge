@@ -65,8 +65,9 @@ impl WasapiCapture {
 
         // Get device enumerator
         let enumerator: IMMDeviceEnumerator = unsafe {
-            CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
-                .map_err(|e| AudioIoError::Platform(format!("Failed to create device enumerator: {}", e)))?
+            CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).map_err(|e| {
+                AudioIoError::Platform(format!("Failed to create device enumerator: {}", e))
+            })?
         };
 
         // Get default render device (for loopback capture)
@@ -87,9 +88,9 @@ impl WasapiCapture {
 
         // Activate audio client
         let audio_client: IAudioClient = unsafe {
-            device
-                .Activate(CLSCTX_ALL, None)
-                .map_err(|e| AudioIoError::DeviceOpenFailed(format!("Failed to activate device: {}", e)))?
+            device.Activate(CLSCTX_ALL, None).map_err(|e| {
+                AudioIoError::DeviceOpenFailed(format!("Failed to activate device: {}", e))
+            })?
         };
 
         // Initialize audio client in loopback mode
@@ -109,16 +110,18 @@ impl WasapiCapture {
         unsafe {
             let collection = enumerator
                 .EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)
-                .map_err(|e| AudioIoError::Platform(format!("Failed to enumerate devices: {}", e)))?;
+                .map_err(|e| {
+                    AudioIoError::Platform(format!("Failed to enumerate devices: {}", e))
+                })?;
 
-            let count = collection
-                .GetCount()
-                .map_err(|e| AudioIoError::Platform(format!("Failed to get device count: {}", e)))?;
+            let count = collection.GetCount().map_err(|e| {
+                AudioIoError::Platform(format!("Failed to get device count: {}", e))
+            })?;
 
             for i in 0..count {
-                let device = collection
-                    .Item(i)
-                    .map_err(|e| AudioIoError::Platform(format!("Failed to get device {}: {}", i, e)))?;
+                let device = collection.Item(i).map_err(|e| {
+                    AudioIoError::Platform(format!("Failed to get device {}: {}", i, e))
+                })?;
 
                 let device_name = Self::get_device_name(&device)?;
                 if device_name == name {
@@ -126,24 +129,28 @@ impl WasapiCapture {
                 }
             }
 
-            Err(AudioIoError::DeviceNotFound(format!("Device '{}' not found", name)))
+            Err(AudioIoError::DeviceNotFound(format!(
+                "Device '{}' not found",
+                name
+            )))
         }
     }
 
     /// Get device friendly name
     fn get_device_name(device: &IMMDevice) -> Result<String> {
         unsafe {
-            let props = device
-                .OpenPropertyStore(STGM_READ)
-                .map_err(|e| AudioIoError::Platform(format!("Failed to open property store: {}", e)))?;
+            let props = device.OpenPropertyStore(STGM_READ).map_err(|e| {
+                AudioIoError::Platform(format!("Failed to open property store: {}", e))
+            })?;
 
             let prop_variant = props
                 .GetValue(&PKEY_Device_FriendlyName)
                 .map_err(|e| AudioIoError::Platform(format!("Failed to get device name: {}", e)))?;
 
             let name = prop_variant.Anonymous.Anonymous.Anonymous.pwszVal;
-            let name_str = name.to_string()
-                .map_err(|e| AudioIoError::Platform(format!("Failed to convert device name: {}", e)))?;
+            let name_str = name.to_string().map_err(|e| {
+                AudioIoError::Platform(format!("Failed to convert device name: {}", e))
+            })?;
 
             Ok(name_str)
         }
@@ -160,12 +167,10 @@ impl WasapiCapture {
             // Verify format is compatible (48kHz stereo 16-bit)
             let format = &*mix_format;
             if format.nSamplesPerSec != 48000 || format.nChannels != 2 {
-                return Err(AudioIoError::UnsupportedFormat(
-                    format!(
-                        "Device format {}Hz {}ch not supported (require 48kHz stereo)",
-                        format.nSamplesPerSec, format.nChannels
-                    )
-                ));
+                return Err(AudioIoError::UnsupportedFormat(format!(
+                    "Device format {}Hz {}ch not supported (require 48kHz stereo)",
+                    format.nSamplesPerSec, format.nChannels
+                )));
             }
 
             // Initialize in loopback mode
@@ -179,7 +184,12 @@ impl WasapiCapture {
                     mix_format,
                     None,
                 )
-                .map_err(|e| AudioIoError::DeviceOpenFailed(format!("Failed to initialize audio client: {}", e)))?;
+                .map_err(|e| {
+                    AudioIoError::DeviceOpenFailed(format!(
+                        "Failed to initialize audio client: {}",
+                        e
+                    ))
+                })?;
 
             // Free mix format
             CoTaskMemFree(Some(mix_format as *const _ as *const _));
@@ -195,14 +205,16 @@ impl AudioCapture for WasapiCapture {
             return Ok(());
         }
 
-        let audio_client = self.audio_client.as_ref()
+        let audio_client = self
+            .audio_client
+            .as_ref()
             .ok_or_else(|| AudioIoError::Platform("Audio client not initialized".into()))?;
 
         // Get capture client
         let capture_client: IAudioCaptureClient = unsafe {
-            audio_client
-                .GetService()
-                .map_err(|e| AudioIoError::DeviceOpenFailed(format!("Failed to get capture client: {}", e)))?
+            audio_client.GetService().map_err(|e| {
+                AudioIoError::DeviceOpenFailed(format!("Failed to get capture client: {}", e))
+            })?
         };
 
         self.capture_client = Some(capture_client);
@@ -223,7 +235,9 @@ impl AudioCapture for WasapiCapture {
             return Err(AudioIoError::Platform("Capture not started".into()));
         }
 
-        let capture_client = self.capture_client.as_ref()
+        let capture_client = self
+            .capture_client
+            .as_ref()
             .ok_or_else(|| AudioIoError::Platform("Capture client not initialized".into()))?;
 
         unsafe {
@@ -277,9 +291,9 @@ impl AudioCapture for WasapiCapture {
 
         if let Some(audio_client) = &self.audio_client {
             unsafe {
-                audio_client
-                    .Stop()
-                    .map_err(|e| AudioIoError::Platform(format!("Failed to stop capture: {}", e)))?;
+                audio_client.Stop().map_err(|e| {
+                    AudioIoError::Platform(format!("Failed to stop capture: {}", e))
+                })?;
             }
         }
 

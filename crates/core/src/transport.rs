@@ -65,8 +65,8 @@
 //!
 //! For a complete working example, see `examples/simple_loopback.rs`.
 
-use crate::Result;
 use crate::rtp::RtpPacket;
+use crate::Result;
 use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 

@@ -25,5 +25,8 @@ fn test_io_error_conversion() {
 #[test]
 fn test_packet_validation_error() {
     let err = AudioBridgeError::PacketValidation("invalid header".to_string());
-    assert_eq!(err.to_string(), "RTP packet validation failed: invalid header");
+    assert_eq!(
+        err.to_string(),
+        "RTP packet validation failed: invalid header"
+    );
 }

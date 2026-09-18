@@ -68,7 +68,11 @@ async fn test_end_to_end_loopback() {
         .encode(&original_pcm)
         .expect("Failed to encode audio");
 
-    println!("Encoded {} PCM samples → {} Opus bytes", original_pcm.len(), opus_payload.len());
+    println!(
+        "Encoded {} PCM samples → {} Opus bytes",
+        original_pcm.len(),
+        opus_payload.len()
+    );
 
     // 4. Wrap in RTP packet and send
     let rtp_header = RtpHeader {
@@ -93,7 +97,10 @@ async fn test_end_to_end_loopback() {
         .expect("Receive timeout")
         .expect("Failed to receive packet");
 
-    println!("Received packet with {} byte payload", received_packet.payload.len());
+    println!(
+        "Received packet with {} byte payload",
+        received_packet.payload.len()
+    );
 
     // 6. Verify RTP header fields
     assert_eq!(received_packet.header.version, 2);

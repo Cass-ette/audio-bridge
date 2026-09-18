@@ -10,6 +10,7 @@ pub struct FileAudioSource {
     loop_playback: bool,
 }
 
+#[allow(dead_code)]
 struct WavHeader {
     sample_rate: u32,
     channels: u16,
@@ -72,12 +73,8 @@ impl FileAudioSource {
                 }
 
                 let channels = u16::from_le_bytes([fmt_data[2], fmt_data[3]]);
-                let sample_rate = u32::from_le_bytes([
-                    fmt_data[4],
-                    fmt_data[5],
-                    fmt_data[6],
-                    fmt_data[7],
-                ]);
+                let sample_rate =
+                    u32::from_le_bytes([fmt_data[4], fmt_data[5], fmt_data[6], fmt_data[7]]);
                 let bits_per_sample = u16::from_le_bytes([fmt_data[14], fmt_data[15]]);
 
                 // Find data chunk
@@ -142,12 +139,9 @@ impl AudioCapture for FileAudioSource {
 
         // Convert little-endian bytes to i16 samples
         let samples_read = bytes_read / bytes_per_sample;
-        for i in 0..samples_read {
+        for (i, sample) in buffer.iter_mut().enumerate().take(samples_read) {
             let byte_offset = i * bytes_per_sample;
-            buffer[i] = i16::from_le_bytes([
-                byte_buffer[byte_offset],
-                byte_buffer[byte_offset + 1],
-            ]);
+            *sample = i16::from_le_bytes([byte_buffer[byte_offset], byte_buffer[byte_offset + 1]]);
         }
 
         self.samples_read += samples_read;
@@ -167,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_parse_wav_header() {
-        use hound::{WavWriter, WavSpec};
+        use hound::{WavSpec, WavWriter};
 
         let spec = WavSpec {
             channels: 2,
@@ -193,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_read_audio_data() {
-        use hound::{WavWriter, WavSpec};
+        use hound::{WavSpec, WavWriter};
 
         let spec = WavSpec {
             channels: 2,
@@ -230,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_loop_playback() {
-        use hound::{WavWriter, WavSpec};
+        use hound::{WavSpec, WavWriter};
 
         let spec = WavSpec {
             channels: 2,

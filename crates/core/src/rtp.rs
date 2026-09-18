@@ -3,15 +3,15 @@ use crate::{AudioBridgeError, Result};
 /// RTP header according to RFC 3550
 #[derive(Debug, Clone, PartialEq)]
 pub struct RtpHeader {
-    pub version: u8,           // Always 2
+    pub version: u8, // Always 2
     pub padding: bool,
     pub extension: bool,
     pub csrc_count: u8,
     pub marker: bool,
-    pub payload_type: u8,      // 96 for Opus (dynamic)
+    pub payload_type: u8, // 96 for Opus (dynamic)
     pub sequence_number: u16,
-    pub timestamp: u32,        // Sampling instant
-    pub ssrc: u32,             // Synchronization source identifier
+    pub timestamp: u32, // Sampling instant
+    pub ssrc: u32,      // Synchronization source identifier
 }
 
 impl RtpHeader {
@@ -45,16 +45,18 @@ impl RtpHeader {
     /// Deserialize header from bytes
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() < 12 {
-            return Err(AudioBridgeError::RtpError(
-                format!("RTP header too short: {} bytes", bytes.len())
-            ));
+            return Err(AudioBridgeError::RtpError(format!(
+                "RTP header too short: {} bytes",
+                bytes.len()
+            )));
         }
 
         let version = (bytes[0] >> 6) & 0x03;
         if version != 2 {
-            return Err(AudioBridgeError::RtpError(
-                format!("Unsupported RTP version: {}", version)
-            ));
+            return Err(AudioBridgeError::RtpError(format!(
+                "Unsupported RTP version: {}",
+                version
+            )));
         }
 
         Ok(RtpHeader {

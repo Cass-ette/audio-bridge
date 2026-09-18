@@ -38,10 +38,10 @@
 //!
 //! See `examples/simple_encoder.rs` for a complete working example.
 
-pub mod codec;
-pub mod rtp;
 pub mod buffer;
+pub mod codec;
 pub mod error;
+pub mod rtp;
 pub mod transport;
 
-pub use error::{Result, AudioBridgeError};
+pub use error::{AudioBridgeError, Result};

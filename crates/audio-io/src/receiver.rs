@@ -24,6 +24,7 @@ pub struct AudioReceiver {
     jitter_buffer: JitterBuffer,
     decoder: OpusDecoder,
     playback: Box<dyn AudioPlayback>,
+    #[allow(dead_code)]
     config: ReceiverConfig,
     running: Arc<AtomicBool>,
     stats: Arc<Mutex<ReceiverStats>>,
@@ -57,7 +58,9 @@ impl AudioReceiver {
         let decoder = OpusDecoder::new(format).map_err(AudioIoError::Codec)?;
 
         // Create RTP receiver (async initialization)
-        let rtp_receiver = RtpReceiver::new(bind_addr).await.map_err(AudioIoError::Codec)?;
+        let rtp_receiver = RtpReceiver::new(bind_addr)
+            .await
+            .map_err(AudioIoError::Codec)?;
 
         // Create jitter buffer
         let jitter_buffer = JitterBuffer::new(config.jitter_buffer_size);
@@ -100,8 +103,10 @@ impl AudioReceiver {
             // Step 1: Receive RTP packet with timeout to allow checking running flag
             let packet = match tokio::time::timeout(
                 tokio::time::Duration::from_millis(100),
-                self.rtp_receiver.receive()
-            ).await {
+                self.rtp_receiver.receive(),
+            )
+            .await
+            {
                 Ok(Ok(pkt)) => pkt,
                 Ok(Err(e)) => {
                     eprintln!("RTP receive error (continuing): {:?}", e);
@@ -248,9 +253,10 @@ mod tests {
 
         // Create receiver with mock playback (avoids CoreAudio buffer issues in tests)
         let playback = Box::new(MockPlayback);
-        let mut receiver = AudioReceiver::with_playback(playback, receiver_addr, ReceiverConfig::default())
-            .await
-            .unwrap();
+        let mut receiver =
+            AudioReceiver::with_playback(playback, receiver_addr, ReceiverConfig::default())
+                .await
+                .unwrap();
 
         // Create sender with file source
         let capture = Box::new(FileAudioSource::open(test_file.clone()).unwrap());
@@ -264,14 +270,10 @@ mod tests {
         let receiver_stats_handle = receiver.stats.clone();
 
         // Start receiver in background task
-        let receiver_task = tokio::spawn(async move {
-            receiver.start().await
-        });
+        let receiver_task = tokio::spawn(async move { receiver.start().await });
 
         // Start sender in background thread (blocking API)
-        let sender_thread = std::thread::spawn(move || {
-            sender.start()
-        });
+        let sender_thread = std::thread::spawn(move || sender.start());
 
         // Let it run for 1.5 seconds (enough to process all 50 frames)
         tokio::time::sleep(Duration::from_millis(1500)).await;
@@ -285,18 +287,35 @@ mod tests {
         let sender_result = sender_thread.join().unwrap();
 
         // Verify both completed successfully
-        assert!(sender_result.is_ok(), "Sender failed: {:?}", sender_result.err());
-        assert!(receiver_result.is_ok(), "Receiver failed: {:?}", receiver_result.err());
+        assert!(
+            sender_result.is_ok(),
+            "Sender failed: {:?}",
+            sender_result.err()
+        );
+        assert!(
+            receiver_result.is_ok(),
+            "Receiver failed: {:?}",
+            receiver_result.err()
+        );
 
         // Verify stats show activity
         let receiver_final_stats = receiver_stats_handle.lock().unwrap().clone();
 
-        println!("Receiver stats: packets_received={}, packets_decoded={}, packets_lost={}",
-                 receiver_final_stats.packets_received, receiver_final_stats.packets_decoded,
-                 receiver_final_stats.packets_lost);
+        println!(
+            "Receiver stats: packets_received={}, packets_decoded={}, packets_lost={}",
+            receiver_final_stats.packets_received,
+            receiver_final_stats.packets_decoded,
+            receiver_final_stats.packets_lost
+        );
 
-        assert!(receiver_final_stats.packets_received > 0, "Expected packets_received > 0");
-        assert!(receiver_final_stats.packets_decoded > 0, "Expected packets_decoded > 0");
+        assert!(
+            receiver_final_stats.packets_received > 0,
+            "Expected packets_received > 0"
+        );
+        assert!(
+            receiver_final_stats.packets_decoded > 0,
+            "Expected packets_decoded > 0"
+        );
     }
 
     // Helper to create a test WAV file with N frames

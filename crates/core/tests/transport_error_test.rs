@@ -13,7 +13,10 @@ async fn test_bind_conflict() {
     // Try to bind second receiver to the same port - should fail
     let result = RtpReceiver::new(addr).await;
 
-    assert!(result.is_err(), "Expected error when binding to occupied port");
+    assert!(
+        result.is_err(),
+        "Expected error when binding to occupied port"
+    );
 
     match result {
         Err(AudioBridgeError::Io(e)) => {
@@ -30,13 +33,16 @@ async fn test_invalid_rtp_packet() {
     let mut receiver = RtpReceiver::new("127.0.0.1:0".parse().unwrap())
         .await
         .expect("Failed to create receiver");
-    let receiver_addr = receiver.local_addr().expect("Failed to get receiver address");
+    let receiver_addr = receiver
+        .local_addr()
+        .expect("Failed to get receiver address");
 
     // Send invalid packet (RTP header must be at least 12 bytes)
     let invalid_packet = vec![0u8; 5];
-    let socket = tokio::net::UdpSocket::bind("127.0.0.1:0".parse::<std::net::SocketAddr>().unwrap())
-        .await
-        .expect("Failed to create test socket");
+    let socket =
+        tokio::net::UdpSocket::bind("127.0.0.1:0".parse::<std::net::SocketAddr>().unwrap())
+            .await
+            .expect("Failed to create test socket");
     socket
         .send_to(&invalid_packet, receiver_addr)
         .await
@@ -50,7 +56,10 @@ async fn test_invalid_rtp_packet() {
         .await
         .expect("receive should not timeout");
 
-    assert!(result.is_err(), "Expected error when receiving invalid RTP packet");
+    assert!(
+        result.is_err(),
+        "Expected error when receiving invalid RTP packet"
+    );
 
     match result {
         Err(AudioBridgeError::RtpError(msg)) => {

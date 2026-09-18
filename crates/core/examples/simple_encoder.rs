@@ -34,16 +34,30 @@ fn main() -> audio_bridge_core::Result<()> {
         total_output_bytes += encoded.len();
 
         if i % 10 == 0 {
-            println!("  Frame {}: {} bytes PCM → {} bytes Opus",
-                     i, pcm.len() * 2, encoded.len());
+            println!(
+                "  Frame {}: {} bytes PCM → {} bytes Opus",
+                i,
+                pcm.len() * 2,
+                encoded.len()
+            );
         }
     }
 
     println!("\nResults:");
-    println!("  Total input:  {} bytes ({:.2} KB)", total_input_bytes, total_input_bytes as f32 / 1024.0);
-    println!("  Total output: {} bytes ({:.2} KB)", total_output_bytes, total_output_bytes as f32 / 1024.0);
-    println!("  Compression ratio: {:.1}x",
-             total_input_bytes as f32 / total_output_bytes as f32);
+    println!(
+        "  Total input:  {} bytes ({:.2} KB)",
+        total_input_bytes,
+        total_input_bytes as f32 / 1024.0
+    );
+    println!(
+        "  Total output: {} bytes ({:.2} KB)",
+        total_output_bytes,
+        total_output_bytes as f32 / 1024.0
+    );
+    println!(
+        "  Compression ratio: {:.1}x",
+        total_input_bytes as f32 / total_output_bytes as f32
+    );
     println!("  (Note: Silence compresses extremely well; real audio typically achieves 5-10x compression)");
 
     Ok(())
