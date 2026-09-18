@@ -1,4 +1,4 @@
-use crate::{traits::AudioPlayback, AudioIoError, ReceiverConfig, Result};
+use crate::{traits::AudioPlayback, AudioIoError, NetworkMonitor, ReceiverConfig, Result};
 use audio_bridge_core::buffer::JitterBuffer;
 use audio_bridge_core::codec::{AudioFormat, OpusDecoder};
 use audio_bridge_core::transport::RtpReceiver;
@@ -28,6 +28,7 @@ pub struct AudioReceiver {
     config: ReceiverConfig,
     running: Arc<AtomicBool>,
     stats: Arc<Mutex<ReceiverStats>>,
+    network_monitor: NetworkMonitor,
 }
 
 impl AudioReceiver {
@@ -73,6 +74,7 @@ impl AudioReceiver {
             config,
             running: Arc::new(AtomicBool::new(false)),
             stats: Arc::new(Mutex::new(ReceiverStats::default())),
+            network_monitor: NetworkMonitor::new(),
         })
     }
 
@@ -99,6 +101,10 @@ impl AudioReceiver {
         // Start playback device
         self.playback.start()?;
 
+        // Statistics reporting interval
+        let mut last_stats_report = std::time::Instant::now();
+        let stats_interval = std::time::Duration::from_secs(5);
+
         while self.running.load(Ordering::SeqCst) {
             // Step 1: Receive RTP packet with timeout to allow checking running flag
             let packet = match tokio::time::timeout(
@@ -118,15 +124,25 @@ impl AudioReceiver {
                 }
             };
 
+            let seq = packet.header.sequence_number;
+            let payload_size = packet.payload.len();
+
             // Update receive stats
             {
                 let mut stats = self.stats.lock().unwrap();
                 stats.packets_received += 1;
-                stats.bytes_received += packet.payload.len() as u64;
+                stats.bytes_received += payload_size as u64;
             }
+
+            // Record packet in network monitor
+            self.network_monitor.record_packet(seq, payload_size);
 
             // Step 2: Insert into jitter buffer
             self.jitter_buffer.insert(packet);
+
+            // Update buffer health
+            let queue_size = self.jitter_buffer.len();
+            self.network_monitor.update_buffer_health(queue_size, 5);
 
             // Step 3: Process one packet from jitter buffer
             // Only process one packet per receive to maintain natural pacing
@@ -196,6 +212,32 @@ impl AudioReceiver {
                 let mut stats = self.stats.lock().unwrap();
                 let jitter_stats = self.jitter_buffer.stats();
                 stats.packets_lost = jitter_stats.packets_lost;
+            }
+
+            // Print network statistics periodically
+            if last_stats_report.elapsed() >= stats_interval {
+                let net_stats = self.network_monitor.get_stats();
+                let quality = self.network_monitor.get_quality_grade();
+                eprintln!("\n📊 Network Stats (Quality: {}):", quality);
+                eprintln!("   Packets: {} rcvd, {} lost ({:.2}% loss)",
+                    net_stats.packets_received,
+                    net_stats.packets_lost,
+                    net_stats.loss_rate * 100.0
+                );
+                eprintln!("   Jitter: {:.1} ms | Bitrate: {:.1} kbps",
+                    net_stats.jitter_ms,
+                    net_stats.bitrate_kbps
+                );
+                eprintln!("   Buffer: {}% health | Queue: {} packets\n",
+                    net_stats.buffer_health,
+                    queue_size
+                );
+
+                if !self.network_monitor.is_quality_acceptable() {
+                    eprintln!("⚠️  WARNING: Poor network quality detected!");
+                }
+
+                last_stats_report = std::time::Instant::now();
             }
         }
 

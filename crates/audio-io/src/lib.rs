@@ -5,6 +5,7 @@
 pub mod config;
 pub mod error;
 pub mod mock;
+pub mod network_stats;
 pub mod receiver;
 pub mod sender;
 pub mod traits;
@@ -17,5 +18,6 @@ pub mod windows;
 
 pub use config::{Bitrate, ReceiverConfig, SenderConfig};
 pub use error::{AudioIoError, Result};
+pub use network_stats::{NetworkMonitor, NetworkStats};
 pub use receiver::{AudioReceiver, ReceiverStats};
 pub use sender::{AudioSender, SenderStats};
