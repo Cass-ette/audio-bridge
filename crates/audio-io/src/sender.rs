@@ -39,7 +39,7 @@ impl AudioSender {
     #[cfg(target_os = "windows")]
     pub async fn new(target_addr: SocketAddr, config: SenderConfig) -> Result<Self> {
         let capture = Box::new(crate::windows::WasapiCapture::new(
-            config.capture_device.clone(),
+            config.capture_device.as_deref(),
         )?);
         Self::with_capture(capture, target_addr, config).await
     }
