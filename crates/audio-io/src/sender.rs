@@ -29,6 +29,31 @@ pub struct AudioSender {
 }
 
 impl AudioSender {
+    /// Create a new AudioSender with platform-default capture device
+    ///
+    /// # Platform Support
+    /// - Windows: Uses WASAPI loopback capture
+    /// - macOS: Not implemented (use `with_capture()` instead)
+    /// - Linux: Not implemented (use `with_capture()` instead)
+    #[cfg(target_os = "windows")]
+    pub async fn new(target_addr: SocketAddr, config: SenderConfig) -> Result<Self> {
+        let capture = Box::new(crate::windows::WasapiCapture::new(config.capture_device.clone())?);
+        Self::with_capture(capture, target_addr, config).await
+    }
+
+    /// Create a new AudioSender with platform-default capture device
+    ///
+    /// # Platform Support
+    /// - Windows: Uses WASAPI loopback capture
+    /// - macOS: Not implemented (use `with_capture()` instead)
+    /// - Linux: Not implemented (use `with_capture()` instead)
+    #[cfg(not(target_os = "windows"))]
+    pub async fn new(_target_addr: SocketAddr, _config: SenderConfig) -> Result<Self> {
+        Err(AudioIoError::Platform(
+            "Platform-default capture not available. Use with_capture()".into()
+        ))
+    }
+
     /// Create a new AudioSender with a provided capture device
     pub async fn with_capture(
         capture: Box<dyn AudioCapture>,
