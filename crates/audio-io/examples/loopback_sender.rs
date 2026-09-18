@@ -85,6 +85,9 @@ fn main() {
     println!("  Packets sent: {}", stats.packets_sent);
     println!("  Bytes sent: {}", stats.bytes_sent);
     println!("  Encoding errors: {}", stats.encoding_errors);
+
+    // Sleep to allow background thread logs to flush
+    std::thread::sleep(std::time::Duration::from_secs(2));
 }
 
 #[cfg(not(target_os = "windows"))]

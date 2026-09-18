@@ -128,8 +128,9 @@ impl AudioReceiver {
             // Step 2: Insert into jitter buffer
             self.jitter_buffer.insert(packet);
 
-            // Step 3: Process packets from jitter buffer
-            while let Some(buffered_packet) = self.jitter_buffer.pop() {
+            // Step 3: Process one packet from jitter buffer
+            // Only process one packet per receive to maintain natural pacing
+            if let Some(buffered_packet) = self.jitter_buffer.pop() {
                 // Step 4: Decode the packet
                 let decoded = match self.decoder.decode(&buffered_packet.payload, false) {
                     Ok(samples) => {
@@ -154,20 +155,38 @@ impl AudioReceiver {
                     }
                 };
 
-                // Step 5: Write to playback (with retry on buffer overrun)
-                let mut retries = 0;
-                loop {
-                    match self.playback.write(&decoded) {
-                        Ok(_) => break,
-                        Err(AudioIoError::BufferOverrun) if retries < 3 => {
-                            // Buffer full - wait a bit and retry
-                            tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
-                            retries += 1;
-                        }
-                        Err(e) => {
-                            eprintln!("Playback write error (continuing): {:?}", e);
-                            break;
-                        }
+                // Apply gain to boost volume (10x = +20dB)
+                let gain = 10.0;
+                let amplified: Vec<i16> = decoded.iter().map(|&sample| {
+                    let amplified = (sample as f32 * gain).clamp(-32768.0, 32767.0) as i16;
+                    amplified
+                }).collect();
+
+                // Step 5: Write to playback (skip if buffer is full)
+                match self.playback.write(&amplified) {
+                    Ok(_) => {
+                        // Success - show audio level and sample info (from amplified signal)
+                        let sum: f64 = amplified.iter().map(|&s| (s as f64).powi(2)).sum();
+                        let rms = (sum / amplified.len() as f64).sqrt();
+                        let db = if rms > 0.0 {
+                            20.0 * (rms / 32768.0).log10()
+                        } else {
+                            -96.0
+                        };
+                        let bar_width = ((db + 96.0) / 96.0 * 50.0).max(0.0) as usize;
+                        let bar = "█".repeat(bar_width);
+
+                        // Show min/max sample values for debugging
+                        let min_sample = amplified.iter().min().copied().unwrap_or(0);
+                        let max_sample = amplified.iter().max().copied().unwrap_or(0);
+                        eprintln!("[Audio] {:>6.1} dB |{} [min:{} max:{}]", db, bar, min_sample, max_sample);
+                    }
+                    Err(AudioIoError::BufferOverrun) => {
+                        // Buffer full - skip this packet to maintain real-time
+                        eprintln!("[Skip] Playback buffer full");
+                    }
+                    Err(e) => {
+                        eprintln!("Playback error: {:?}", e);
                     }
                 }
             }

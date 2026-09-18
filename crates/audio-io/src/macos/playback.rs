@@ -37,6 +37,9 @@ unsafe extern "C" fn playback_callback(
         Err(_) => return,
     };
 
+    // Debug: log callback invocation and queue size
+    eprintln!("[Callback] Queue size: {}", queue_guard.len());
+
     let buffer_ref = &mut *buffer;
     let buffer_size = buffer_ref.mAudioDataBytesCapacity as usize;
     let sample_count = buffer_size / 2; // 16-bit samples
@@ -200,7 +203,8 @@ impl AudioPlayback for CoreAudioPlayback {
             .map_err(|e| AudioIoError::Platform(format!("Lock error: {}", e)))?;
 
         // Limit queue size to prevent unbounded memory growth
-        if queue.len() >= 10 {
+        // 50 chunks = ~1 second of audio buffering at 20ms per chunk
+        if queue.len() >= 50 {
             return Err(AudioIoError::BufferOverrun);
         }
 

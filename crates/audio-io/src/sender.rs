@@ -116,6 +116,7 @@ impl AudioSender {
         let frame_size = (crate::config::format::SAMPLE_RATE / 50) as usize; // 960 samples per channel
         let samples_per_frame = frame_size * crate::config::format::CHANNELS as usize; // 1920 total
         let mut buffer = vec![0i16; samples_per_frame];
+        let mut accumulator = Vec::with_capacity(samples_per_frame);
 
         // Initialize RTP header (will be reused with incrementing sequence/timestamp)
         let ssrc = 0x12345678u32; // Fixed SSRC for this session
@@ -147,10 +148,23 @@ impl AudioSender {
                 }
             };
 
-            // If no samples read, EOF reached
+            // If no samples read, wait a bit for audio data
             if samples_read == 0 {
-                break; // Graceful exit
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                continue;
             }
+
+            // Accumulate samples until we have a full frame
+            accumulator.extend_from_slice(&buffer[..samples_read]);
+
+            // If we don't have enough samples yet, continue accumulating
+            if accumulator.len() < samples_per_frame {
+                continue;
+            }
+
+            // We have enough samples, copy one frame and remove from accumulator
+            buffer[..samples_per_frame].copy_from_slice(&accumulator[..samples_per_frame]);
+            accumulator.drain(..samples_per_frame);
 
             // Update frames captured stat
             {
@@ -159,7 +173,7 @@ impl AudioSender {
             }
 
             // Step 2: Encode with Opus
-            let encoded = match self.encoder.encode(&buffer[..samples_read]) {
+            let encoded = match self.encoder.encode(&buffer[..samples_per_frame]) {
                 Ok(data) => data,
                 Err(e) => {
                     // Encoding error: log and continue
@@ -194,12 +208,14 @@ impl AudioSender {
                         .map_err(AudioIoError::Codec)
                 })?
             } else {
-                // Use existing runtime handle
-                tokio::runtime::Handle::current().block_on(async {
-                    self.rtp_sender
-                        .send(&packet)
-                        .await
-                        .map_err(AudioIoError::Codec)
+                // Use existing runtime handle with block_in_place to avoid nested blocking
+                tokio::task::block_in_place(|| {
+                    tokio::runtime::Handle::current().block_on(async {
+                        self.rtp_sender
+                            .send(&packet)
+                            .await
+                            .map_err(AudioIoError::Codec)
+                    })
                 })?
             };
 
