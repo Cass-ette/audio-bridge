@@ -23,3 +23,15 @@ coreaudio-sys = "0.2"
 [dev-dependencies]
 hound = "3.5"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+
+[[example]]
+name = "sender"
+path = "examples/sender.rs"
+
+[[example]]
+name = "receiver"
+path = "examples/receiver.rs"
+
+[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dev-dependencies]
+tracing-subscriber = "0.3"
+ctrlc = "3.4"
